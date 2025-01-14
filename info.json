@@ -1,0 +1,10 @@
+{
+	"Id": "custom_map_image",
+	"Version": "1.0.0",
+	"DisplayName": "Map Image Changer",
+	"Author": "sloast",
+	"EntryMethod": "custom_map_image.Main.Load",
+	"ManagerVersion": "0.27.3",
+	"Repository": "https://raw.githubusercontent.com/sloast/dv-custom-map-image/main/repository.json",
+	"HomePage": "https://github.com/sloast/dv-custom-map-image"
+}
