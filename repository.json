@@ -1,0 +1,9 @@
+{
+	"Releases": [
+		{
+			"Id": "custom_map_image",
+			"Version": "1.0.0",
+			"DownloadUrl": "https://github.com/sloast/dv-custom-map-image/releases/download/v1.0.0/custom_map_image_v1.0.0.zip"
+		}
+	]
+}
