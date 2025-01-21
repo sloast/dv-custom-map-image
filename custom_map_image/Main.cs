@@ -12,13 +12,17 @@ using DV.Teleporters;
 
 namespace custom_map_image;
 
+#if DEBUG
 [EnableReloading]
+#endif
 public static class Main
 {
 	private static Harmony? harmony;
 	public static ModEntry? mod;
 	public static Texture2D? mapTexture = null;
 	public static Settings settings = new();
+
+	public static string lastImagePath = "";
 
 	public static bool Load(UnityModManager.ModEntry modEntry)
 	{
@@ -34,24 +38,7 @@ public static class Main
 			harmony = new Harmony(modEntry.Info.Id);
 			harmony.PatchAll(Assembly.GetExecutingAssembly());
 
-			try
-			{
-				if (settings.imagePath != "")
-				{
-					Texture2D tex = new(2, 2);
-					byte[] data = File.ReadAllBytes(settings.imagePath);
-					tex.LoadImage(data);
-					mapTexture = tex;
-				} else
-				{
-					mapTexture = null;
-				}
-			}
-			catch (Exception ex)
-			{
-				modEntry.Logger.LogException("Error loading image", ex);
-				mapTexture = null;
-			}
+			LoadTexture(force: true);
 		}
 		catch (Exception ex)
 		{
@@ -77,17 +64,76 @@ public static class Main
 	static void OnSaveGUI(UnityModManager.ModEntry modEntry)
 	{
 		settings?.Save(modEntry);
+		LoadTexture();
 	}
 
+	private static void LoadTexture(bool force = false)
+	{
+
+		try
+		{
+			string imagePath = "";
+
+			switch (settings.imageSelection)
+			{
+				case Settings.BuiltinMap.Default:
+					imagePath = "";
+					break;
+				case Settings.BuiltinMap.GradeMap:
+					imagePath = GetPath("GradeMap.png");
+					break;
+				case Settings.BuiltinMap.KotZoomiesMap:
+					imagePath = GetPath("Kot_Derail_Valley_Zoomies_Map.png");
+					break;
+				case Settings.BuiltinMap.Custom:
+					imagePath = settings.imagePath;
+					break;
+			}
+
+			if (!force && imagePath == lastImagePath) return;
+			lastImagePath = imagePath;
+
+			if (imagePath != "")
+			{
+				Texture2D tex = new(2, 2);
+				byte[] data = File.ReadAllBytes(imagePath);
+				tex.LoadImage(data);
+				mapTexture = tex;
+			}
+			else
+			{
+				mapTexture = null;
+			}
+		}
+		catch (Exception ex)
+		{
+			mod?.Logger.LogException("Error loading image", ex);
+			mapTexture = null;
+		}
+	}
+
+	private static string GetPath(string relativePath)
+	{
+		return mod?.Path + relativePath;
+	}
 }
 
 public class Settings : ModSettings, IDrawable
 {
-	[Header("Click reload after changing the image file")]
-	[Draw("Image path (png/jpg)")] public string imagePath = "";
+	[Header("Click save after changing the map image")]
+	[Draw("Select map")] public BuiltinMap imageSelection = BuiltinMap.Default;
+	[Draw("Image path (if \"Custom\" selected)")] public string imagePath = "";
 	[Draw("Station names")] public bool showStationNames = true;
 	[Draw("Station resource markers")] public bool showStationResources = true;
 	[Draw("Legend")] public bool showLegend = true;
+
+	public enum BuiltinMap
+	{
+		Default,
+		GradeMap,
+		KotZoomiesMap,
+		Custom
+	}
 
 	public override void Save(UnityModManager.ModEntry modEntry)
 	{
@@ -109,7 +155,7 @@ public class MapMarkersController_Patch
 
 			Transform paper = __instance.transform.Find("MapPaper");
 
-			if (Main.mapTexture != null) { 
+			if (Main.mapTexture != null) {
 
 				paper.Find("Map_LOD0").GetComponent<MeshRenderer>().material.mainTexture = Main.mapTexture;
 				paper.Find("Map_LOD1").GetComponent<MeshRenderer>().material.mainTexture = Main.mapTexture;
