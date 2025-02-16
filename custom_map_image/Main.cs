@@ -1,14 +1,15 @@
 using System;
-using System.Reflection;
-using HarmonyLib;
-using UnityModManagerNet;
-
-using UnityEngine;
-using DV;
-using static UnityModManagerNet.UnityModManager;
+using System.Collections;
 using System.IO;
+using System.Reflection;
 using dnlib;
+using DV;
 using DV.Teleporters;
+using HarmonyLib;
+using UnityEngine;
+using UnityModManagerNet;
+using static UnityModManagerNet.UnityModManager;
+using static UnityModManagerNet.UnityModManager.Param;
 
 namespace custom_map_image;
 
@@ -21,6 +22,7 @@ public static class Main
 	public static ModEntry? mod;
 	public static Texture2D? mapTexture = null;
 	public static Settings settings = new();
+	public static bool settingsChanged = false;
 
 	public static string lastImagePath = "";
 
@@ -56,6 +58,7 @@ public static class Main
 
 		return true;
 	}
+
 	static void OnGUI(UnityModManager.ModEntry modEntry)
 	{
 		settings?.Draw(modEntry);
@@ -65,32 +68,17 @@ public static class Main
 	{
 		settings?.Save(modEntry);
 		LoadTexture();
+		settingsChanged = true;
 	}
 
-	private static void LoadTexture(bool force = false)
+	public static void LoadTexture(bool force = false)
 	{
-
 		try
 		{
-			string imagePath = "";
+			string imagePath = settings.GetImagePath();
 
-			switch (settings.imageSelection)
-			{
-				case Settings.BuiltinMap.Default:
-					imagePath = "";
-					break;
-				case Settings.BuiltinMap.GradeMap:
-					imagePath = GetPath("GradeMap.png");
-					break;
-				case Settings.BuiltinMap.KotZoomiesMap:
-					imagePath = GetPath("Kot_Derail_Valley_Zoomies_Map.png");
-					break;
-				case Settings.BuiltinMap.Custom:
-					imagePath = settings.imagePath;
-					break;
-			}
-
-			if (!force && imagePath == lastImagePath) return;
+			if (!force && imagePath == lastImagePath)
+				return;
 			lastImagePath = imagePath;
 
 			if (imagePath != "")
@@ -102,7 +90,7 @@ public static class Main
 			}
 			else
 			{
-				mapTexture = null;
+				mapTexture = (Texture2D)Resources.Load("WorldMap");
 			}
 		}
 		catch (Exception ex)
@@ -111,28 +99,55 @@ public static class Main
 			mapTexture = null;
 		}
 	}
-
-	private static string GetPath(string relativePath)
-	{
-		return mod?.Path + relativePath;
-	}
 }
 
 public class Settings : ModSettings, IDrawable
 {
-	[Header("Click save after changing the map image")]
-	[Draw("Select map")] public BuiltinMap imageSelection = BuiltinMap.Default;
-	[Draw("Image path (if \"Custom\" selected)")] public string imagePath = "";
-	[Draw("Station names")] public bool showStationNames = true;
-	[Draw("Station resource markers")] public bool showStationResources = true;
-	[Draw("Legend")] public bool showLegend = true;
+	[Header("Click save after changing settings")]
+	[Draw("Select map")]
+	public BuiltinMap imageSelection = BuiltinMap.GradeMap;
+
+	[Draw("Image path (if \"Custom\" selected)")]
+	public string imagePath = "";
+
+	[Draw("Station names")]
+	public bool showStationNames = true;
+
+	[Draw("Station resource markers")]
+	public bool showStationResources = true;
+
+	[Draw("Legend")]
+	public bool showLegend = true;
 
 	public enum BuiltinMap
 	{
 		Default,
 		GradeMap,
 		KotZoomiesMap,
-		Custom
+		HeightAndSpeed,
+		Custom,
+	}
+
+	public string GetImagePath() {
+		switch (imageSelection)
+		{
+			case BuiltinMap.Default:
+				return "";
+			case BuiltinMap.GradeMap:
+				return GetPath("GradeMap.png");
+			case BuiltinMap.KotZoomiesMap:
+				return GetPath("Kot_Derail_Valley_Zoomies_Map.png");
+			case BuiltinMap.HeightAndSpeed:
+				return GetPath("YNakajima_height_and_speed_map.png");
+			case BuiltinMap.Custom:
+				return imagePath;
+		}
+		return "";
+	}
+
+	private static string GetPath(string relativePath)
+	{
+		return Main.mod?.Path + relativePath;
 	}
 
 	public override void Save(UnityModManager.ModEntry modEntry)
@@ -146,41 +161,47 @@ public class Settings : ModSettings, IDrawable
 [HarmonyPatch(typeof(MapMarkersController))]
 public class MapMarkersController_Patch
 {
-	[HarmonyPatch("Start")]
-	[HarmonyPostfix]
-	public static void Start_Postfix(MapMarkersController __instance)
+	private static Texture defaultMapTex = null!;
+
+	private static void UpdateMapTexture(MapMarkersController __instance, bool onlyMarkers = false)
 	{
 		try
 		{
+			foreach (Transform child in __instance.transform)
+			{
+				if (child.name.StartsWith("MapSideMarker"))
+				{
+					child.gameObject.SetActive(Main.settings.showStationResources);
+				}
+			}
+
+			if (onlyMarkers) return;
 
 			Transform paper = __instance.transform.Find("MapPaper");
 
-			if (Main.mapTexture != null) {
+			if (defaultMapTex is null)
+				defaultMapTex = __instance.transform.Find("MapPaper/Map_LOD0").GetComponent<MeshRenderer>().material.mainTexture;
 
-				paper.Find("Map_LOD0").GetComponent<MeshRenderer>().material.mainTexture = Main.mapTexture;
-				paper.Find("Map_LOD1").GetComponent<MeshRenderer>().material.mainTexture = Main.mapTexture;
-			}
+			Texture texture = Main.mapTexture ?? defaultMapTex;
 
-			if (!Main.settings.showLegend)
+			paper.Find("Map_LOD0").GetComponent<MeshRenderer>().material.mainTexture = texture;
+			paper.Find("Map_LOD1").GetComponent<MeshRenderer>().material.mainTexture = texture;
+			
+
+			foreach (Transform child in paper)
 			{
-				foreach(Transform child in paper)
+				if (child.name.StartsWith("Marker"))
 				{
-					if (child.name.StartsWith("Marker"))
-					{
-						child.gameObject.SetActive(false);
-					}
+					child.gameObject.SetActive(Main.settings.showLegend);
 				}
-				paper.Find("Names/Legend").gameObject.SetActive(false);
 			}
+			paper.Find("Names/Legend").gameObject.SetActive(Main.settings.showLegend);
 
-			if (!Main.settings.showStationNames)
+			foreach (Transform child in paper.Find("Names"))
 			{
-				foreach(Transform child in paper.Find("Names"))
+				if (child.name != "Legend")
 				{
-					if (child.name != "Legend")
-					{
-						child.gameObject.SetActive(false);
-					}
+					child.gameObject.SetActive(Main.settings.showStationNames);
 				}
 			}
 		}
@@ -190,18 +211,32 @@ public class MapMarkersController_Patch
 		}
 	}
 
+	[HarmonyPatch("Start")]
+	[HarmonyPostfix]
+	private static void Start_Postfix(MapMarkersController __instance)
+	{
+		UpdateMapTexture(__instance);
+
+		//__instance.StartCoroutine(UpdateSettingsCoro(__instance));
+	}
+
+	//private static IEnumerator UpdateSettingsCoro(MapMarkersController __instance)
+	//{
+	//	for (;;)
+	//	{
+	//		if (Main.settingsChanged)
+	//		{
+	//			UpdateMapTexture(__instance);
+	//			Main.settingsChanged = false;
+	//		}
+	//		yield return new WaitForSeconds(1f);
+	//	}
+	//}
+
 	[HarmonyPatch("OnDestinationUpdated")]
 	[HarmonyPostfix]
-	public static void OnDestinationUpdated_Postfix(MapMarkersController __instance)
+	private static void OnDestinationUpdated_Postfix(MapMarkersController __instance)
 	{
-		if (Main.settings.showStationResources) return;
-
-		foreach (Transform child in __instance.transform)
-		{
-			if (child.name.StartsWith("MapSideMarker"))
-			{
-				child.gameObject.SetActive(false);
-			}
-		}
+		UpdateMapTexture(__instance, onlyMarkers: true);
 	}
 }

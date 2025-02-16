@@ -1,6 +1,6 @@
 {
 	"Id": "custom_map_image",
-	"Version": "1.0.0",
+	"Version": "2.0.0",
 	"DisplayName": "Map Image Changer",
 	"Author": "sloast",
 	"EntryMethod": "custom_map_image.Main.Load",
