@@ -27,8 +27,6 @@ In the UMM UI, click on the settings icon for the mod, and enter the path to the
 It should be a PNG (.png) or JPEG (.jpg, .jpeg) file.
 Either restart the game or click the reload button when changing the image. If no image is given it will use the default texture.
 
-**Options will not take effect until reloading from the main menu.**
-
 Issues
 ------
 

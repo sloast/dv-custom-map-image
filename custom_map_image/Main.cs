@@ -217,21 +217,21 @@ public class MapMarkersController_Patch
 	{
 		UpdateMapTexture(__instance);
 
-		//__instance.StartCoroutine(UpdateSettingsCoro(__instance));
+		__instance.StartCoroutine(UpdateSettingsCoro(__instance));
 	}
 
-	//private static IEnumerator UpdateSettingsCoro(MapMarkersController __instance)
-	//{
-	//	for (; ; )
-	//	{
-	//		if (Main.settingsChanged)
-	//		{
-	//			UpdateMapTexture(__instance);
-	//			Main.settingsChanged = false;
-	//		}
-	//		yield return new WaitForSeconds(1f);
-	//	}
-	//}
+	private static IEnumerator UpdateSettingsCoro(MapMarkersController __instance)
+	{
+		for (; ; )
+		{
+			if (Main.settingsChanged)
+			{
+				UpdateMapTexture(__instance);
+				Main.settingsChanged = false;
+			}
+			yield return new WaitForSeconds(1f);
+		}
+	}
 
 	[HarmonyPatch("OnDestinationUpdated")]
 	[HarmonyPostfix]
