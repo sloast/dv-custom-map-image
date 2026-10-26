@@ -75,7 +75,7 @@ public static class Main
 	{
 		try
 		{
-			string imagePath = settings.GetImagePath();
+			string imagePath = settings.GetImagePath().Trim('"', ' ');
 
 			if (!force && imagePath == lastImagePath)
 				return;
@@ -222,7 +222,7 @@ public class MapMarkersController_Patch
 
 	//private static IEnumerator UpdateSettingsCoro(MapMarkersController __instance)
 	//{
-	//	for (;;)
+	//	for (; ; )
 	//	{
 	//		if (Main.settingsChanged)
 	//		{
